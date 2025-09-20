@@ -30,10 +30,13 @@ parsing:
 # Text-to-speech
 tts:
   default_voice: "en_US-kusal-medium"
-  length_scale: 1.1
-  sentence_silence: 0.4
+  length_scale: 1.2
+  sentence_silence: 0.0  # Set this to 0.0 to avoid double pauses, since the code is implemented based on sentence per piper call, and assemble the audio later per txt file
+  sentence_pause: 0.6     # Additional pause between sentences in SRT timing
   piper_extra_args: []
   text_extensions: [".txt"]
+  # Sentence-based generation (more accurate timing)
+  sentence_based_generation: true
 
 # RVC voice conversion
 rvc:

@@ -84,23 +84,35 @@ class TTSGenerator:
                 file_stem = text_file.stem
                 
                 for voice_model, voice_config, voice_name in voices:
-                    output_file = output_dir / f"{file_stem}.wav"
-                    
-                    if self._generate_audio(content, voice_model, voice_config, output_file):
-                        total_generated += 1
-                        logger.debug(f"Generated: {output_file.name}")
+                    # Use sentence-based generation if enabled
+                    if getattr(self.settings.tts, 'sentence_based_generation', True):
+                        output_file = output_dir / f"{file_stem}.wav"
+                        srt_file = caption_dir / f"{file_stem}.srt" if generate_captions and caption_dir else None
                         
-                        # Generate SRT caption file if requested
-                        if generate_captions and caption_dir:
-                            srt_file = caption_dir / f"{file_stem}.srt"
-                            if self._generate_srt_from_text(content, output_file, srt_file):
-                                logger.debug(f"Generated caption: {srt_file.name}")
-                            else:
-                                logger.warning(f"Failed to generate caption for {file_stem}")
-                                
+                        if self._generate_sentence_based_audio(content, voice_model, voice_config, output_file, srt_file):
+                            total_generated += 1
+                            logger.debug(f"Generated with sentences: {output_file.name}")
+                        else:
+                            logger.error(f"Failed to generate sentence-based audio for {text_file.name} with {voice_name}")
+                            success = False
                     else:
-                        logger.error(f"Failed to generate audio for {text_file.name} with {voice_name}")
-                        success = False
+                        # Original single-file approach (fallback)
+                        output_file = output_dir / f"{file_stem}.wav"
+                        
+                        if self._generate_audio(content, voice_model, voice_config, output_file):
+                            total_generated += 1
+                            logger.debug(f"Generated: {output_file.name}")
+                            
+                            # Generate SRT caption file if requested
+                            if generate_captions and caption_dir:
+                                srt_file = caption_dir / f"{file_stem}.srt"
+                                if self._generate_srt_from_text(content, output_file, srt_file):
+                                    logger.debug(f"Generated caption: {srt_file.name}")
+                                else:
+                                    logger.warning(f"Failed to generate caption for {file_stem}")
+                        else:
+                            logger.error(f"Failed to generate audio for {text_file.name} with {voice_name}")
+                            success = False
                         
             except Exception as e:
                 logger.error(f"Error processing {text_file.name}: {e}")
@@ -147,6 +159,87 @@ class TTSGenerator:
             logger.error(f"Error running Piper TTS: {e}")
             return False
     
+    def _generate_sentence_based_audio(self, text: str, model_path: Path, config_path: Path, output_path: Path, srt_path: Optional[Path] = None) -> bool:
+        """Generate audio by processing each sentence individually and assembling.
+        
+        This method provides precise timing control by:
+        1. Splitting text into sentences using '.' as separator
+        2. Generating individual WAV files for each sentence using Piper TTS
+        3. Recording actual audio durations for precise SRT timing
+        4. Assembling individual sentence WAVs into final audio file
+        5. Creating accurate SRT with cumulative timing + configurable pauses
+        
+        Args:
+            text: Input text content
+            model_path: Path to Piper TTS model
+            config_path: Path to model config
+            output_path: Final assembled WAV output path
+            srt_path: Optional SRT output path for captions
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Split text into sentences
+            sentences = self._split_text_into_sentences(text)
+            if not sentences:
+                logger.warning("No sentences found in text")
+                return False
+            
+            logger.debug(f"Processing {len(sentences)} sentences for {output_path.name}")
+            
+            # Create temporary directory for sentence audio files
+            temp_dir = output_path.parent / f".temp_{output_path.stem}"
+            temp_dir.mkdir(exist_ok=True)
+            
+            sentence_files = []
+            sentence_durations = []
+            
+            try:
+                # Generate individual sentence audio files
+                for i, sentence in enumerate(sentences):
+                    sentence_file = temp_dir / f"sentence_{i:03d}.wav"
+                    
+                    # Generate audio for this sentence
+                    if not self._generate_audio(sentence, model_path, config_path, sentence_file):
+                        logger.error(f"Failed to generate audio for sentence {i+1}: {sentence[:50]}...")
+                        return False
+                    
+                    # Record actual duration
+                    from ..utils import get_audio_duration
+                    duration = get_audio_duration(sentence_file)
+                    sentence_files.append(sentence_file)
+                    sentence_durations.append(duration)
+                    
+                    logger.debug(f"Sentence {i+1}: {duration:.2f}s - {sentence[:50]}...")
+                
+                # Assemble all sentence files into final audio
+                if not self._assemble_audio_files(sentence_files, output_path):
+                    logger.error("Failed to assemble sentence audio files")
+                    return False
+                
+                # Generate SRT with precise timing if requested
+                if srt_path:
+                    if not self._generate_precise_srt(sentences, sentence_durations, srt_path):
+                        logger.error("Failed to generate SRT from sentence timings")
+                        return False
+                
+                logger.info(f"Generated sentence-based audio: {output_path.name} ({len(sentences)} sentences, {sum(sentence_durations):.1f}s total)")
+                return True
+                
+            finally:
+                # Clean up temporary files
+                try:
+                    import shutil
+                    if temp_dir.exists():
+                        shutil.rmtree(temp_dir)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error in sentence-based audio generation: {e}")
+            return False
+
     def _build_piper_command(self, model_path: Path, config_path: Path, output_path: Path) -> List[str]:
         """Build Piper command line arguments."""
         # Start with base Piper command
@@ -415,3 +508,153 @@ class TTSGenerator:
         millisecs = int((seconds % 1) * 1000)
         
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
+    
+    def _assemble_audio_files(self, audio_files: List[Path], output_path: Path) -> bool:
+        """Assemble multiple audio files with sentence pauses using FFmpeg.
+        
+        This method properly adds sentence_pause silence between audio files
+        to match the SRT timing exactly.
+        
+        Args:
+            audio_files: List of input audio file paths
+            output_path: Output assembled audio file path
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get sentence pause duration
+            sentence_pause = getattr(self.settings.tts, 'sentence_pause', 0.3)
+            
+            if len(audio_files) == 1:
+                # Single file - just copy it
+                import shutil
+                shutil.copy2(audio_files[0], output_path)
+                return True
+            
+            # Build FFmpeg filter to concatenate with silence between files
+            # Use audio filter graph to add silence between each file
+            filter_parts = []
+            input_args = []
+            
+            # Add input files
+            for i, audio_file in enumerate(audio_files):
+                input_args.extend(["-i", str(audio_file)])
+            
+            # Build filter graph: [0:a][silence1][1:a][silence2][2:a]...concat
+            filter_graph = ""
+            
+            for i in range(len(audio_files)):
+                if i > 0:
+                    # Add silence generator between files
+                    silence_part = f"aevalsrc=0:duration={sentence_pause}:sample_rate=22050[silence{i}];"
+                    filter_graph += silence_part
+            
+            # Build concatenation chain
+            concat_inputs = []
+            for i in range(len(audio_files)):
+                concat_inputs.append(f"[{i}:a]")
+                if i < len(audio_files) - 1:  # Not the last file
+                    concat_inputs.append(f"[silence{i+1}]")
+            
+            # Complete filter graph
+            filter_graph += "".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=0:a=1[out]"
+            
+            # Build complete FFmpeg command
+            cmd = [
+                "ffmpeg", "-y",  # Overwrite output
+                *input_args,
+                "-filter_complex", filter_graph,
+                "-map", "[out]",
+                "-c:a", "pcm_s16le",  # Use consistent audio codec
+                str(output_path)
+            ]
+            
+            logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120  # Longer timeout for complex filter
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"FFmpeg assembly failed: {result.stderr}")
+                return False
+            
+            # Verify output file
+            if not output_path.exists() or output_path.stat().st_size == 0:
+                logger.error(f"Assembled audio file not created: {output_path}")
+                return False
+            
+            logger.debug(f"Successfully assembled {len(audio_files)} files with {sentence_pause}s pauses")
+            return True
+                
+        except subprocess.TimeoutExpired:
+            logger.error("FFmpeg assembly timed out")
+            return False
+        except Exception as e:
+            logger.error(f"Error assembling audio files: {e}")
+            return False
+    
+    def _generate_precise_srt(self, sentences: List[str], sentence_durations: List[float], srt_path: Path) -> bool:
+        """Generate SRT with precise timing based on actual sentence audio durations.
+        
+        Args:
+            sentences: List of sentence strings
+            sentence_durations: List of actual audio durations for each sentence
+            srt_path: Output SRT file path
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if len(sentences) != len(sentence_durations):
+                logger.error("Mismatch between sentences and durations count")
+                return False
+            
+            # Get configurable pause between sentences
+            sentence_pause = getattr(self.settings.tts, 'sentence_pause', 0.3)
+            
+            srt_content = []
+            current_time = 0.0
+            
+            for i, (sentence, duration) in enumerate(zip(sentences, sentence_durations)):
+                # Calculate start and end times
+                start_time = current_time
+                
+                # For all sentences except the last: include pause in the subtitle end time
+                # This makes SRT timing match the assembled audio exactly
+                if i < len(sentences) - 1:  # Not the last sentence
+                    end_time = current_time + duration + sentence_pause
+                else:  # Last sentence - no pause after
+                    end_time = current_time + duration
+                
+                # Format timestamps
+                start_timestamp = self._format_timestamp(start_time)
+                end_timestamp = self._format_timestamp(end_time)
+                
+                # Add SRT entry
+                srt_content.extend([
+                    str(i + 1),
+                    f"{start_timestamp} --> {end_timestamp}",
+                    sentence.strip(),
+                    ""  # Empty line between entries
+                ])
+                
+                # Move to next sentence start time
+                current_time = end_time
+            
+            # Write SRT file
+            srt_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(srt_path, 'w', encoding='utf-8') as f:
+                f.write("\n".join(srt_content))
+            
+            total_duration = sum(sentence_durations) + (len(sentences) - 1) * sentence_pause
+            logger.debug(f"Generated precise SRT: {srt_path.name} ({len(sentences)} sentences, {total_duration:.1f}s total)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error generating precise SRT: {e}")
+            return False
