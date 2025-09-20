@@ -1,0 +1,64 @@
+# Main configuration
+project_root: "."
+week_pattern: "*[0-9][0-9][0-9][0-9]Week[0-9][0-9]"
+
+# Path configuration
+paths:
+  input_dir: "data/input"
+  parsed_dir: "data/parsed"
+  audio_tts_dir: "data/audio_tts"
+  audio_rvc_dir: "data/audio_rvc"
+  captions_dir: "data/captions"
+  videos_dir: "data/videos"
+  
+  # Assets
+  assets_dir: "assets"
+  hubert_dir: "assets/hubert"
+  rmvpe_dir: "assets/rmvpe"
+  rvc_models_dir: "assets/rvc_models"
+  tts_models_dir: "assets/tts_models"
+
+# Content parsing
+parsing:
+  timeout_sec: 20
+  retries: 2
+  user_agent: "Mozilla/5.0 (compatible; FinancialVideoPipeline/1.0)"
+  enable_html_scrape: true
+  sections_subdir: "sections"
+  images_subdir: "images"
+
+# Text-to-speech
+tts:
+  default_voice: "en_US-kusal-medium"
+  length_scale: 1.1
+  sentence_silence: 0.4
+  piper_extra_args: []
+  text_extensions: [".txt"]
+
+# RVC voice conversion
+rvc:
+  checkpoint_name: "Formal_e130_s58890.pth"
+  checkpoint_prefix: "Formal"
+  f0_method: "rmvpe"
+  rms_mix_rate: 0.25
+  protect: 0.33
+  filter_radius: 3
+  wav_extensions: ["*.wav", "*.WAV"]
+  rvc_project_path: "../Retrieval-based-Voice-Conversion-WebUI"
+
+# Caption generation
+caption:
+  model_size: "base"
+  device: "auto"
+  compute_type: "float32"  # Use float32 for CPU compatibility
+  language: "en"
+  beam_size: 5
+
+# Video assembly
+video:
+  resolution: "1920x1080"
+  fps: 30
+  video_codec: "libx264"
+  audio_codec: "aac"
+  crf: 23
+  preset: "medium"

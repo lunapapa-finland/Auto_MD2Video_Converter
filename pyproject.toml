@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-video-pipeline"
+version = "0.1.0"
+description = "A pipeline to convert financial markdown blogs to personalized video content using AI TTS and RVC voice conversion"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Your Name", email = "your.email@example.com"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.9"
+# Use dynamic dependencies that will be read from requirements.txt
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "isort", 
+    "flake8",
+    "mypy",
+    "twine",
+    "build",
+]
+
+[project.scripts]
+fvp = "financial_video_pipeline.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/financial-video-pipeline"
+Repository = "https://github.com/your-username/financial-video-pipeline"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+# Read dependencies from requirements.txt  
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

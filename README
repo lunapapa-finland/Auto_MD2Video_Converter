@@ -1,0 +1,181 @@
+# Financial Video Pipeline
+
+An automated pipeline for converting financial analysis markdown content into narrated videos with TTS and voice conversion.
+
+## Features
+
+- **Markdown Parsing**: Extract sections and images from financial analysis markdown files
+- **Integrated TTS + Captions**: Generate both audio and SRT captions simultaneously using Piper TTS
+- **RVC Voice Conversion**: Apply voice conversion for personalized narration
+- **Video Assembly**: Create section videos and full weekly compilations with subtitles
+
+## Quick Start
+
+### Using Makefile (Recommended)
+
+```bash
+# Show all available commands
+make help
+
+# Process a complete week
+make run-all WEEK=2025Week38
+
+# Run step by step
+make run-parse WEEK=2025Week38
+make run-tts WEEK=2025Week38    # Generates both audio AND captions!
+make run-rvc WEEK=2025Week38
+make run-assemble WEEK=2025Week38
+
+# Check progress
+make show-progress WEEK=2025Week38
+
+# Clean generated data
+make clean
+```
+
+### Using Python directly
+
+```bash
+# Run the complete pipeline on a week
+python -m financial_video_pipeline data/input/2025Week38.json --steps all
+
+# Or run step by step for better control
+python -m financial_video_pipeline data/input/2025Week38.json --steps parse
+python -m financial_video_pipeline data/input/2025Week38.json --steps tts     # Now generates captions too!
+python -m financial_video_pipeline data/input/2025Week38.json --steps rvc
+python -m financial_video_pipeline data/input/2025Week38.json --steps assemble
+```
+
+## Pipeline Steps
+
+### 1. Parse (`--steps parse`)
+- Extract sections from markdown files
+- Generate images from content
+- Create structured text files for each section
+- **Output**: `data/parsed/{week}/sections/`
+
+### 2. TTS + Captions (`--steps tts`) 
+- Generate audio using Piper TTS
+- **Simultaneously create SRT captions** using text analysis and timing estimation
+- No need for separate caption generation step!
+- **Output**: `data/audio_tts/{week}/` and `data/captions/{week}/`
+
+### 3. RVC Voice Conversion (`--steps rvc`)
+- Apply voice conversion to TTS audio
+- **Output**: `data/audio_rvc/{week}/`
+
+### 4. Video Assembly (`--steps assemble`)
+- Create individual section videos with subtitles
+- Assemble full weekly video
+- **Output**: `data/videos/{week}/sections/` and `data/videos/{week}/full_video.mp4`
+
+## Installation
+
+```bash
+# Install package
+pip install -e .
+
+# Or for development
+make dev-setup
+```
+
+## Project Structure
+
+```
+data/
+├── input/              # Input JSON files (version controlled)
+│   └── 2025Week38.json
+├── parsed/            # Parsed sections and images (generated)
+├── audio_tts/         # TTS audio files (generated)
+├── audio_rvc/         # RVC converted audio (generated) 
+├── captions/          # SRT caption files (generated)
+└── videos/            # Final video outputs (generated)
+```
+
+## Configuration
+
+The pipeline uses `config/config.yaml` for settings:
+- TTS voice models and parameters
+- RVC model paths and settings  
+- Video encoding options
+- Caption generation parameters
+
+## Development
+
+```bash
+# Set up development environment
+make dev-setup
+
+# Run tests
+make test
+
+# Code formatting
+make format
+
+# Check code quality
+make lint
+
+# Clean generated data
+make clean
+
+# Clean everything including cache
+make clean-all
+```
+
+## Key Improvements
+
+- **Efficient Caption Generation**: TTS step now generates both audio and captions simultaneously, eliminating the need for Faster Whisper reverse-engineering
+- **Integrated Pipeline**: No separate `--steps caption` needed
+- **Smart Timing**: Caption timing based on text analysis and actual TTS audio duration
+- **Makefile Automation**: Easy-to-use commands for common workflows
+
+## Common Workflows
+
+### New Project Setup
+```bash
+# Clone and set up
+git clone <repo>
+cd auto-video-pipeline
+make dev-setup
+```
+
+### Process a Week
+```bash
+# Complete automation
+make run-all WEEK=2025Week38
+
+# Or step by step with progress monitoring
+make run-parse WEEK=2025Week38
+make show-progress WEEK=2025Week38
+make run-tts WEEK=2025Week38
+make show-progress WEEK=2025Week38
+make run-rvc WEEK=2025Week38
+make run-assemble WEEK=2025Week38
+```
+
+### Debugging and Validation
+```bash
+# Check what's available
+make check-week WEEK=2025Week38
+
+# Validate installation
+make validate
+
+# Clean and retry
+make clean
+make run-tts WEEK=2025Week38
+```
+
+### Development
+```bash
+# Set up dev environment
+make dev-setup
+
+# Code quality checks
+make lint
+make test
+make format
+
+# Update dependencies
+make requirements-update
+```
