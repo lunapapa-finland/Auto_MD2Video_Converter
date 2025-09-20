@@ -78,6 +78,31 @@ class VideoConfig(BaseModel):
     audio_codec: str = Field(default="aac")
     crf: int = Field(default=23)
     preset: str = Field(default="medium")
+    
+    # Image handling
+    resize_images: bool = Field(default=True)
+    resize_method: str = Field(default="pad")  # "pad", "stretch", "crop"
+    
+    # Caption styling
+    caption_font: str = Field(default="Arial")
+    caption_font_size: int = Field(default=24)
+    caption_font_color: str = Field(default="white")
+    caption_outline_color: str = Field(default="black")
+    caption_outline_width: int = Field(default=2)
+    caption_position: str = Field(default="bottom")  # "top", "bottom", "center"
+    
+    # Video resources
+    start_video_dir: str = Field(default="assets/video_resources/start")
+    end_video_dir: str = Field(default="assets/video_resources/end")
+    transition_image_dir: str = Field(default="assets/video_resources/transition")
+    
+    # Transition settings
+    transition_duration: float = Field(default=3.0)
+    transition_font: str = Field(default="Arial")
+    transition_font_size: int = Field(default=24)
+    transition_font_color: str = Field(default="white")
+    transition_outline_color: str = Field(default="black")
+    transition_outline_width: int = Field(default=3)
 
 
 class Settings(BaseModel):

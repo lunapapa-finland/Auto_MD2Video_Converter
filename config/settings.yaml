@@ -17,6 +17,7 @@ paths:
   rmvpe_dir: "assets/rmvpe"
   rvc_models_dir: "assets/rvc_models"
   tts_models_dir: "assets/tts_models"
+  video_resources_dir: "assets/video_resources"
 
 # Content parsing
 parsing:
@@ -65,3 +66,28 @@ video:
   audio_codec: "aac"
   crf: 23
   preset: "medium"
+  
+  # Image handling
+  resize_images: true  # Resize downloaded images to target resolution
+  resize_method: "pad"  # "pad" (black bars) or "stretch" (distort) or "crop" (crop to fit)
+  
+  # Caption styling
+  caption_font: "Arial"
+  caption_font_size: 10
+  caption_font_color: "white"
+  caption_outline_color: "black"
+  caption_outline_width: 1
+  caption_position: "bottom"  # "top", "bottom", "center"
+  
+  # Video resources
+  start_video_dir: "assets/video_resources/start"
+  end_video_dir: "assets/video_resources/end"
+  transition_image_dir: "assets/video_resources/transition"
+  
+  # Transition settings
+  transition_duration: 3.0  # seconds
+  transition_font: "Arial"
+  transition_font_size: 48
+  transition_font_color: "white"
+  transition_outline_color: "black"
+  transition_outline_width: 10
