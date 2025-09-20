@@ -23,6 +23,90 @@ class FFmpegAssembler:
         """
         self.settings = settings
         
+    def _add_logo_to_video(self, input_video: Path, output_video: Path) -> Path:
+        """Add logo overlay to any video file.
+        
+        Args:
+            input_video: Input video file
+            output_video: Output video file with logo
+            
+        Returns:
+            Path to video with logo overlay
+        """
+        logo_path = self.settings.get_absolute_path(Path(self.settings.video.logo_path))
+        
+        if not logo_path.exists():
+            logger.warning(f"Logo not found: {logo_path}, copying video without logo")
+            import shutil
+            shutil.copy2(input_video, output_video)
+            return output_video
+        
+        # Get logo settings
+        logo_size = self.settings.video.logo_size
+        logo_position = self.settings.video.logo_position
+        logo_padding = self.settings.video.logo_padding
+        
+        # Calculate position coordinates
+        position_map = {
+            'top-left': f"{logo_padding}:{logo_padding}",
+            'top-right': f"W-w-{logo_padding}:{logo_padding}",
+            'bottom-left': f"{logo_padding}:H-h-{logo_padding}",
+            'bottom-right': f"W-w-{logo_padding}:H-h-{logo_padding}"
+        }
+        position_coords = position_map.get(logo_position, position_map['bottom-right'])
+        
+        # Build FFmpeg command for logo overlay
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(input_video),  # Main video
+            "-i", str(logo_path),    # Logo image
+            "-filter_complex",
+            f"[1:v]scale={logo_size}:{logo_size}[logo];[0:v][logo]overlay={position_coords}",
+            "-c:a", "copy",  # Copy audio without re-encoding
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            str(output_video)
+        ]
+        
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.debug(f"Added logo to: {output_video.name}")
+            return output_video
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Logo overlay failed: {e.stderr}")
+            # Fallback: copy without logo
+            import shutil
+            shutil.copy2(input_video, output_video)
+            return output_video
+
+    def _cleanup_intermediate_videos(self, video_output_dir: Path, keep_final: str) -> None:
+        """Clean up intermediate videos, keeping only the final video.
+        
+        Args:
+            video_output_dir: Video output directory
+            keep_final: Name of final video to keep
+        """
+        if not self.settings.video.save_intermediate_videos:
+            logger.info("Cleaning up intermediate videos, keeping only final video...")
+            
+            # Remove sections directory
+            sections_dir = video_output_dir / "sections"
+            if sections_dir.exists():
+                import shutil
+                shutil.rmtree(sections_dir)
+                logger.debug("Removed sections directory")
+            
+            # Remove normalized start/end videos
+            for video_file in video_output_dir.glob("*_normalized.mp4"):
+                video_file.unlink()
+                logger.debug(f"Removed {video_file.name}")
+            
+            # Remove temp videos
+            for video_file in video_output_dir.glob("*_temp.mp4"):
+                video_file.unlink()
+                logger.debug(f"Removed {video_file.name}")
+            
+            logger.info(f"Cleanup complete - only {keep_final} remains")
+
     def _check_ffmpeg(self) -> bool:
         """Check if FFmpeg is available.
         
@@ -272,11 +356,13 @@ class FFmpegAssembler:
         # Build complete video sequence with start, transitions, sections, and end
         final_video_parts = []
         
+        # Step 1: Create all video parts (without logos first)
+        temp_video_parts = []
+        
         # Add start video if available (normalized to match project format)
         start_video = self.get_start_video(video_output_dir)
         if start_video:
-            logger.info(f"Adding normalized start video: {start_video}")
-            final_video_parts.append(start_video)
+            temp_video_parts.append(('start', start_video))
         
         # Add sections with transitions
         for i, section_video in enumerate(video_segments):
@@ -286,23 +372,31 @@ class FFmpegAssembler:
             
             try:
                 self.create_transition_video(section_name, transition_video)
-                final_video_parts.append(transition_video)
-                logger.info(f"Added transition for: {section_name}")
+                temp_video_parts.append(('transition', transition_video))
+                logger.info(f"Created transition for: {section_name}")
             except Exception as e:
                 logger.warning(f"Failed to create transition for {section_name}: {e}")
                 # Continue without transition
             
             # Add the actual section video
-            final_video_parts.append(section_video)
+            temp_video_parts.append(('section', section_video))
         
         # Add end video if available (normalized to match project format)
         end_video = self.get_end_video(video_output_dir)
         if end_video:
-            logger.info(f"Adding normalized end video: {end_video}")
-            final_video_parts.append(end_video)
+            temp_video_parts.append(('end', end_video))
         
-        # Concatenate all parts into full video
-        full_video = video_output_dir / "full_video.mp4"
+        # Step 2: Add logo to ALL video parts
+        logger.info(f"Adding logo to {len(temp_video_parts)} video parts...")
+        for video_type, video_path in temp_video_parts:
+            # Create video with logo
+            video_with_logo = video_path.parent / f"{video_path.stem}_with_logo.mp4"
+            self._add_logo_to_video(video_path, video_with_logo)
+            final_video_parts.append(video_with_logo)
+            logger.debug(f"Added logo to {video_type}: {video_path.name}")
+        
+        # Step 3: Concatenate all parts with logos
+        final_video = video_output_dir / f"{week_name}.mp4"
         
         # DEBUG: Log all video parts and their durations
         logger.info("=== DEBUG: Video parts for concatenation ===")
@@ -318,14 +412,17 @@ class FFmpegAssembler:
         logger.info(f"Expected total duration: {total_expected_duration:.2f}s ({total_expected_duration/60:.1f}min)")
         logger.info("=== End DEBUG ===")
         
-        self.concatenate_videos(final_video_parts, full_video)
+        self.concatenate_videos(final_video_parts, final_video)
+        
+        # Step 4: Clean up intermediate videos (keep only final video)
+        self._cleanup_intermediate_videos(video_output_dir, f"{week_name}.mp4")
         
         logger.info(f"Weekly video assembly complete:")
-        logger.info(f"  - Full video: {full_video}")
-        logger.info(f"  - Section videos: {section_videos_dir}")
-        logger.info(f"  - Created {len(video_segments)} section videos")
+        logger.info(f"  - Final video: {final_video}")
+        logger.info(f"  - Created {len(video_segments)} section videos with logos")
+        logger.info(f"  - Total video parts: {len(final_video_parts)}")
         
-        return full_video
+        return final_video
         
     def normalize_video_format(self, input_video: Path, output_video: Path) -> Path:
         """Normalize video to match project format and codec settings.
@@ -407,19 +504,26 @@ class FFmpegAssembler:
             FFmpeg filter string for image resizing
         """
         target_width, target_height = map(int, self.settings.video.resolution.split('x'))
-        resize_method = getattr(self.settings.video, 'resize_method', 'pad')
+        resize_images = getattr(self.settings.video, 'resize_images', True)
         
-        if resize_method == 'stretch':
-            # Stretch image to fill resolution (may distort)
+        if resize_images:
+            # Stretch image to exact resolution (may distort but fills exactly)
             return f"scale={target_width}:{target_height}"
+        else:
+            # Use resize_method for more sophisticated resizing with aspect ratio preservation
+            resize_method = getattr(self.settings.video, 'resize_method', 'pad')
             
-        elif resize_method == 'crop':
-            # Scale and crop to fill resolution
-            return f"scale={target_width}:{target_height}:force_original_aspect_ratio=increase,crop={target_width}:{target_height}"
-            
-        else:  # 'pad' (default)
-            # Scale with padding (black bars)
-            return f"scale={target_width}:{target_height}:force_original_aspect_ratio=decrease,pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2"
+            if resize_method == 'stretch':
+                # Same as resize_images=true - stretch to exact size
+                return f"scale={target_width}:{target_height}"
+                
+            elif resize_method == 'crop':
+                # Scale and crop to fill resolution (may cut off parts)
+                return f"scale={target_width}:{target_height}:force_original_aspect_ratio=increase,crop={target_width}:{target_height}"
+                
+            else:  # 'pad' (default)
+                # Scale with padding (black bars) to preserve aspect ratio
+                return f"scale={target_width}:{target_height}:force_original_aspect_ratio=decrease,pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2"
     
     def _build_subtitle_filter(self, srt_file: Path) -> str:
         """Build FFmpeg subtitle filter with custom styling.

@@ -95,6 +95,15 @@ class VideoConfig(BaseModel):
     start_video_dir: str = Field(default="assets/video_resources/start")
     end_video_dir: str = Field(default="assets/video_resources/end")
     transition_image_dir: str = Field(default="assets/video_resources/transition")
+    logo_path: str = Field(default="assets/video_resources/logo/logo.png")
+    
+    # Output settings
+    save_intermediate_videos: bool = Field(default=False)
+    
+    # Logo/watermark settings
+    logo_size: int = Field(default=100)
+    logo_position: str = Field(default="bottom-right")  # "top-left", "top-right", "bottom-left", "bottom-right"
+    logo_padding: int = Field(default=20)
     
     # Transition settings
     transition_duration: float = Field(default=3.0)

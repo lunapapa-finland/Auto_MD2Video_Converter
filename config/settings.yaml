@@ -67,8 +67,11 @@ video:
   crf: 23
   preset: "medium"
   
+  # Output settings
+  save_intermediate_videos: false  # only save final video
+  
   # Image handling
-  resize_images: true  # Resize downloaded images to target resolution
+  resize_images: true  # Resize images to target resolution
   resize_method: "pad"  # "pad" (black bars) or "stretch" (distort) or "crop" (crop to fit)
   
   # Caption styling
@@ -83,6 +86,12 @@ video:
   start_video_dir: "assets/video_resources/start"
   end_video_dir: "assets/video_resources/end"
   transition_image_dir: "assets/video_resources/transition"
+  logo_path: "assets/video_resources/logo/logo.png"
+  
+  # Logo/watermark settings
+  logo_size: 100  # Logo size in pixels (will be resized to square)
+  logo_position: "bottom-right"  # "top-left", "top-right", "bottom-left", "bottom-right"
+  logo_padding: 20  # Padding from video edges in pixels
   
   # Transition settings
   transition_duration: 3.0  # seconds
