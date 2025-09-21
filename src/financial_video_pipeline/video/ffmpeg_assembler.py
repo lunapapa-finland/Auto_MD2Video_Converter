@@ -386,16 +386,21 @@ class FFmpegAssembler:
         if end_video:
             temp_video_parts.append(('end', end_video))
         
-        # Step 2: Add logo to ALL video parts
-        logger.info(f"Adding logo to {len(temp_video_parts)} video parts...")
+        # Step 2: Add logo to section and transition videos (exclude start/end)
+        logger.info(f"Adding logo to section and transition videos...")
         for video_type, video_path in temp_video_parts:
-            # Create video with logo
-            video_with_logo = video_path.parent / f"{video_path.stem}_with_logo.mp4"
-            self._add_logo_to_video(video_path, video_with_logo)
-            final_video_parts.append(video_with_logo)
-            logger.debug(f"Added logo to {video_type}: {video_path.name}")
+            if video_type in ['start', 'end']:
+                # Use start/end videos without logo
+                final_video_parts.append(video_path)
+                logger.debug(f"Using {video_type} video without logo: {video_path.name}")
+            else:
+                # Add logo to section and transition videos
+                video_with_logo = video_path.parent / f"{video_path.stem}_with_logo.mp4"
+                self._add_logo_to_video(video_path, video_with_logo)
+                final_video_parts.append(video_with_logo)
+                logger.debug(f"Added logo to {video_type}: {video_path.name}")
         
-        # Step 3: Concatenate all parts with logos
+        # Step 3: Concatenate all parts (start/end without logo, sections/transitions with logo)
         final_video = video_output_dir / f"{week_name}.mp4"
         
         # DEBUG: Log all video parts and their durations
