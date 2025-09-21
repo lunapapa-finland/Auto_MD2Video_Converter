@@ -171,8 +171,8 @@ assets/video_resources/logo/*.jpeg
 assets/video_resources/start/*.mp4
 assets/video_resources/end/*.mp4
 
-
-
+# Hugging Face cache
+assets/.gitattributes
 # RVC models  
 *.pth
 *.onnx

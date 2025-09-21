@@ -2,7 +2,7 @@
 PYTHON := python
 PIP := $(PYTHON) -m pip
 
-.PHONY: help _pip_compat clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
+.PHONY: help _pip_compat hf-assets-download clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
 
 # Default target
 help: ## Show this help message
@@ -112,6 +112,17 @@ run-audio: ## Generate both TTS and RVC audio (steps 2+3)
 # Debugging and validation
 validate: ## Validate installation and models
 	python validate_install.py
+
+# Refresh assets from Hugging Face
+hf-assets-download: ## Refresh assets from Hugging Face
+	@$(PYTHON) -c "import os; \
+		from huggingface_hub import snapshot_download; \
+		repo_id='Lunapapa2025/Auto_MD2Video_Converter'; \
+		repo_type='model'; \
+		token=os.getenv('HUGGINGFACE_HUB_TOKEN', None); \
+		snapshot_download(repo_id=repo_id, repo_type=repo_type, allow_patterns=['**'], \
+						local_dir='assets', local_dir_use_symlinks=False, token=token); \
+		print('assets/ refreshed from Hugging Face.')"
 
 check-week: ## Check if week data exists
 	@if [ -z "$(WEEK)" ]; then \

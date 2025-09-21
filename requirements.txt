@@ -44,3 +44,7 @@ rich>=13.0.0
 # Platform specific
 onnxruntime; sys_platform == 'darwin'
 onnxruntime-gpu; sys_platform != 'darwin'
+
+
+# Hugging Face
+huggingface_hub>=0.23
