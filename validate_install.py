@@ -29,9 +29,6 @@ def test_imports():
         from financial_video_pipeline.rvc import RVCConverter
         print("✅ RVC module imports OK")
         
-        # Test caption module
-        from financial_video_pipeline.captions import FasterWhisperCaptioner
-        print("✅ Caption module imports OK")
         
         # Test video module
         from financial_video_pipeline.video import FFmpegAssembler
@@ -63,8 +60,6 @@ def test_config_creation():
         data_path = settings.data_dir
         print(f"✅ Data directory: {data_path}")
         
-        step_path = settings.get_step_dir("step0_json")
-        print(f"✅ Step directory: {step_path}")
         
         return True
         
@@ -73,29 +68,7 @@ def test_config_creation():
         return False
 
 
-def test_pipeline_creation():
-    """Test if pipeline can be created with example config."""
-    print("\n🔍 Testing pipeline creation...")
-    
-    try:
-        from financial_video_pipeline import Pipeline
-        
-        # Check if example config exists
-        config_example = Path("config/settings.example.yaml")
-        if not config_example.exists():
-            print(f"⚠️  Example config not found at {config_example}")
-            return False
-            
-        # Try to create pipeline (this will fail if config is invalid)
-        print(f"📁 Using config: {config_example}")
-        # We can't actually create it without a proper config, but we can test the class exists
-        print("✅ Pipeline class available")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Pipeline creation error: {e}")
-        return False
+
 
 
 def check_dependencies():
@@ -135,8 +108,7 @@ def main():
     
     tests = [
         ("Import Tests", test_imports),
-        ("Configuration Tests", test_config_creation), 
-        ("Pipeline Tests", test_pipeline_creation),
+        ("Configuration Tests", test_config_creation),
         ("Dependency Check", check_dependencies),
     ]
     

@@ -1,17 +1,24 @@
-.PHONY: help clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
+# Use the interpreter from the active (conda) env
+PYTHON := python
+PIP := $(PYTHON) -m pip
+
+.PHONY: help _pip_compat clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
 
 # Default target
 help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Installation and setup
-install: ## Install package and dependencies
-	pip install -e .
+_pip_compat:
+	@$(PIP) install -q -U "pip==24.0" "setuptools>=45" wheel
 
-dev-setup: ## Set up development environment
-	pip install -e .
-	pip install -r requirements-dev.txt
+# Installation and setup
+install: _pip_compat  ## Install package and runtime deps (from pyproject -> requirements.txt)
+	$(PIP) install -e .
+
+dev-setup: _pip_compat  ## Install package + dev tools
+	$(PIP) install -e .
+	$(PIP) install -r requirements-dev.txt
 
 # Code quality
 test: ## Run tests

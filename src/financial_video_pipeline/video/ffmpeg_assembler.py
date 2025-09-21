@@ -96,7 +96,7 @@ class FFmpegAssembler:
                 logger.debug("Removed sections directory")
             
             # Remove normalized start/end videos
-            for video_file in video_output_dir.glob("*_normalized.mp4"):
+            for video_file in video_output_dir.glob("*normalized*.mp4"):
                 video_file.unlink()
                 logger.debug(f"Removed {video_file.name}")
             
