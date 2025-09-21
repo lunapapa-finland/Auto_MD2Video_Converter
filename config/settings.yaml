@@ -48,7 +48,7 @@ rvc:
   protect: 0.33
   filter_radius: 3
   wav_extensions: ["*.wav", "*.WAV"]
-  rvc_project_path: "../Retrieval-based-Voice-Conversion-WebUI"
+  rvc_project_path: "./src/financial_video_pipeline/rvc/"
 
 # Caption generation
 caption:
@@ -96,7 +96,7 @@ video:
   # Transition settings
   transition_duration: 3.0  # seconds
   transition_font: "Arial"
-  transition_font_size: 48
+  transition_font_size: 72
   transition_font_color: "white"
   transition_outline_color: "black"
   transition_outline_width: 10
