@@ -16,12 +16,12 @@ HARD RULES
 2) Output ONLY a single valid UTF-8 JSON object. No markdown, no commentary, no trailing commas, properly escaped quotes.
 3) Do NOT add any new market analysis, price levels, events, or claims beyond what’s in the Markdown.
    - You MAY rephrase, clarify, or add tiny analogies/examples to aid understanding.
-4) First-person voice throughout (“Let’s take a look…”, “What this means is…”, “So in short…”).
+4) First-person voice throughout (“Let’s take a look…”, “What this means is…”, “So in short…”, etc.).
 5) End EACH section with a brief takeaway that naturally tees up the next section.
 6) Respect numbers and ranges EXACTLY as written in the Markdown (do not invent or round).
 7) If a section or bullet is blank, keep it concise: acknowledge briefly and move on (do NOT fabricate content).
 8) If an embedded image or any image placeholder appears, just refer to it generically based on section name in the narration. Do NOT describe content you can’t see.
-9) Keep language TTS-friendly: short sentences, simple phrasing, no emojis, no SSML tags.
+9) Keep language Piper-TTS friendly: short sentences, simple phrasing, no emojis, no SSML tags. Never generate content with '-', '\n' etc. All the sentence should be spoken without problem and avoid Sentence-Final Numbers. 
 10) Do not merge, split, rename, or invent sections.
 
 TONE BY SECTION
@@ -30,9 +30,9 @@ TONE BY SECTION
 - "5min Reviews …": reflective; summarize “Good Entries”, “Traps” as quick lessons (“What we did well…”, “What trapped us…”).
 
 LENGTH TARGETS (to reach ~20–30 minutes total)
-- Executive Strip: ~120–300 words.
-- Monthly/Weekly/Daily Outlook: ~400–800 words EACH.
-- Each 5min Review: ~120–300 words (reflect only what’s present in the MD).
+- Executive Strip: ~200–300 words.
+- Monthly/Weekly/Daily Outlook: ~600–800 words EACH.
+- Each 5min Review: ~200–300 words (reflect only what’s present in the MD).
 
 STRUCTURE & TRANSITIONS
 - Use brief transitions to keep flow natural between sections.
@@ -83,4 +83,4 @@ STYLE REMINDERS
 
 NOW DO THIS
 - Read the Markdown.
-- Produce the JSON object as specified, name it as the MD file name after '-' and remove white spaces, e.g. 2025Week37.json, give me download link
+- Produce the JSON object as specified, name it as the MD file name after '-' and remove white spaces, e.g. 2025Week37.json, give me json file to download

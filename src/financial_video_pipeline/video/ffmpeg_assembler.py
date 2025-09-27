@@ -357,12 +357,14 @@ class FFmpegAssembler:
         final_video_parts = []
         
         # Step 1: Create all video parts (without logos first)
-        temp_video_parts = []
+        # Keep optional display labels for timeline generation
+        # Each entry: (video_type, video_path, label or None)
+        temp_video_parts: List[Tuple[str, Path, Optional[str]]] = []
         
         # Add start video if available (normalized to match project format)
         start_video = self.get_start_video(video_output_dir)
         if start_video:
-            temp_video_parts.append(('start', start_video))
+            temp_video_parts.append(('start', start_video, 'Start'))
         
         # Add sections with transitions
         for i, section_video in enumerate(video_segments):
@@ -372,33 +374,41 @@ class FFmpegAssembler:
             
             try:
                 self.create_transition_video(section_name, transition_video)
-                temp_video_parts.append(('transition', transition_video))
+                # Label transitions with formatted section names for timeline
+                temp_video_parts.append(('transition', transition_video, self._format_section_name(section_name)))
                 logger.info(f"Created transition for: {section_name}")
             except Exception as e:
                 logger.warning(f"Failed to create transition for {section_name}: {e}")
                 # Continue without transition
             
             # Add the actual section video
-            temp_video_parts.append(('section', section_video))
+            temp_video_parts.append(('section', section_video, None))
         
         # Add end video if available (normalized to match project format)
         end_video = self.get_end_video(video_output_dir)
         if end_video:
-            temp_video_parts.append(('end', end_video))
+            temp_video_parts.append(('end', end_video, 'End'))
         
         # Step 2: Add logo to section and transition videos (exclude start/end)
         logger.info(f"Adding logo to section and transition videos...")
-        for video_type, video_path in temp_video_parts:
+        # Keep track of which final parts mark timeline points: map Path -> label
+        timeline_points: List[Tuple[Path, str]] = []
+        for video_type, video_path, label in temp_video_parts:
             if video_type in ['start', 'end']:
                 # Use start/end videos without logo
                 final_video_parts.append(video_path)
                 logger.debug(f"Using {video_type} video without logo: {video_path.name}")
+                if label:
+                    timeline_points.append((video_path, label))
             else:
                 # Add logo to section and transition videos
                 video_with_logo = video_path.parent / f"{video_path.stem}_with_logo.mp4"
                 self._add_logo_to_video(video_path, video_with_logo)
                 final_video_parts.append(video_with_logo)
                 logger.debug(f"Added logo to {video_type}: {video_path.name}")
+                # Only transitions contribute labels in the timeline
+                if video_type == 'transition' and label:
+                    timeline_points.append((video_with_logo, label))
         
         # Step 3: Concatenate all parts (start/end without logo, sections/transitions with logo)
         final_video = video_output_dir / f"{week_name}.mp4"
@@ -418,6 +428,40 @@ class FFmpegAssembler:
         logger.info("=== End DEBUG ===")
         
         self.concatenate_videos(final_video_parts, final_video)
+
+        # Step 3.5: Generate YouTube chapters/timeline text in the output folder
+        def _format_ts(total_seconds: float) -> str:
+            total_seconds = int(total_seconds)
+            h = total_seconds // 3600
+            m = (total_seconds % 3600) // 60
+            s = total_seconds % 60
+            if h > 0:
+                return f"{h:02d}:{m:02d}:{s:02d}"
+            return f"{m:02d}:{s:02d}"
+
+        chapters: List[str] = []
+        # Build quick lookup for paths that have labels
+        labeled_paths = {p: lbl for p, lbl in timeline_points}
+        cumulative = 0.0
+        for part in final_video_parts:
+            if part in labeled_paths:
+                chapters.append(f"{_format_ts(cumulative)} {labeled_paths[part]}")
+            try:
+                info = self.get_video_info(part)
+                duration = float(info.get('format', {}).get('duration', 0))
+                cumulative += duration
+            except Exception:
+                # If duration not available, skip adding time
+                pass
+
+        # Write chapters file
+        chapters_file = video_output_dir / f"{week_name}_chapters.txt"
+        try:
+            with open(chapters_file, 'w', encoding='utf-8') as cf:
+                cf.write("\n".join(chapters) + "\n")
+            logger.info(f"Wrote YouTube chapters file: {chapters_file}")
+        except Exception as e:
+            logger.warning(f"Failed to write chapters file: {e}")
         
         # Step 4: Clean up intermediate videos (keep only final video)
         self._cleanup_intermediate_videos(video_output_dir, f"{week_name}.mp4")

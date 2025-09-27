@@ -96,7 +96,7 @@ video:
   # Transition settings
   transition_duration: 3.0  # seconds
   transition_font: "Arial"
-  transition_font_size: 72
+  transition_font_size: 84
   transition_font_color: "white"
   transition_outline_color: "black"
   transition_outline_width: 10
