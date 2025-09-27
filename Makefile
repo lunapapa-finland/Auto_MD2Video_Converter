@@ -2,7 +2,7 @@
 PYTHON := python
 PIP := $(PYTHON) -m pip
 
-.PHONY: help _pip_compat hf-assets-download clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
+.PHONY: help _pip_compat hf-assets-download hf-assets-upload clean clean-all dev-setup install test lint format run-parse run-tts run-rvc run-assemble run-all
 
 # Default target
 help: ## Show this help message
@@ -123,6 +123,13 @@ hf-assets-download: ## Refresh assets from Hugging Face
 		snapshot_download(repo_id=repo_id, repo_type=repo_type, allow_patterns=['**'], \
 						local_dir='assets', local_dir_use_symlinks=False, token=token); \
 		print('assets/ refreshed from Hugging Face.')"
+		
+# Upload assets to Hugging Face
+hf-assets-upload: ## upload ./assets to Hugging Face
+	hf upload Lunapapa2025/Auto_MD2Video_Converter ./assets \
+		--repo-type model \
+		--commit-message "Upload assets"
+
 
 check-week: ## Check if week data exists
 	@if [ -z "$(WEEK)" ]; then \
