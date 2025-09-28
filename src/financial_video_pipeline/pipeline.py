@@ -61,8 +61,8 @@ class Pipeline:
     def tts(self):
         """Lazy import TTS module.""" 
         if self._tts_module is None:
-            from .tts import TTSGenerator
-            self._tts_module = TTSGenerator(self.config)
+            from .tts import create_tts
+            self._tts_module = create_tts(self.config)
         return self._tts_module
     
     @property

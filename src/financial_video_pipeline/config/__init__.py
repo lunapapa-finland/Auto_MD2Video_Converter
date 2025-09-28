@@ -39,11 +39,30 @@ class ParsingConfig(BaseModel):
 class TTSConfig(BaseModel):
     """Text-to-speech configuration."""
     
-    default_voice: str = Field(default="en_US-kusal-medium")
+    # Which TTS engine to use: 'edge' or 'piper'
+    engine: str = Field(default="edge")  # primary field
+    # Backward/alias: allow user to specify default_tts in YAML; we map it to engine if present
+    default_tts: Optional[str] = Field(default=None)
+    # Default voice: for Edge use e.g. 'en-US-AriaNeural'; for Piper, model stem
+    default_voice: str = Field(default="en-US-AriaNeural")
     length_scale: float = Field(default=1.1)
     sentence_silence: float = Field(default=0.4)
+    # Additional pause inserted between sentences when assembling (seconds)
+    sentence_pause: float = Field(default=0.6)
     piper_extra_args: List[str] = Field(default_factory=list)
     text_extensions: List[str] = Field(default_factory=lambda: [".txt"])
+    
+    @validator("engine", pre=True, always=True)
+    def normalize_engine(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return "edge"
+    
+    @validator("default_tts", pre=True, always=True)
+    def normalize_default_tts(cls, v):
+        if v is None:
+            return v
+        return str(v).lower()
     
 
 class RVCConfig(BaseModel):
